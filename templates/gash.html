@@ -1,0 +1,25 @@
+<!doctype html>
+<title>GitDash</title>
+<div class='container'>
+    <h1>GitDash</h1>
+    <table>
+        <thead>
+            <tr>
+                <td><strong>Project</strong></td>
+                {% for enviro in enviros_header %}
+                <td><strong>{{ enviro }}</strong></td>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for project, enviros in projects.items() %}
+            <tr>
+                <td>{{ project }}</td>
+                {% for enviro, branch in enviros.items() %}
+                <td>{{ branch }}</td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
