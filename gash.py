@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import subprocess
+import shlex, subprocess
 from collections import OrderedDict
 from settings import projects
 
@@ -9,15 +9,17 @@ def scp_script(environ_cfg):
     if environ_cfg['cert']:
         cmd += "-i {cert} ".format(cert=environ_cfg['cert'])
 
-    cmd += 'getbranch.sh {user}@{host}: > /dev/null'.format(
+    cmd += '-o ConnectTimeout=30 getbranch.sh {user}@{host}: > /dev/null'.format(
         user = environ_cfg['user'],
         host = environ_cfg['host']
     )
 
+    #cmd_l = shlex.split(cmd)
+
     # TODO
-    #print(cmd)
-    #cmd_l = cmd.split()
-    return subprocess.call(cmd, shell=True)
+    print(cmd)
+
+    return subprocess.call(cmd, timeout=30, shell=True)
 
 
 def ssh_get_branch(environ_cfg):
@@ -25,20 +27,21 @@ def ssh_get_branch(environ_cfg):
     if environ_cfg['cert']:
         cmd += "-i {cert} ".format(cert=environ_cfg['cert'])
 
-    cmd += '{user}@{host} "/home/{user}/getbranch.sh {path}"'.format(
+    cmd += '-o ConnectTimeout=30 {user}@{host} \"/home/{user}/getbranch.sh {path}\"'.format(
         user = environ_cfg['user'],
         host = environ_cfg['host'],
         path = environ_cfg['path']
     )
+    cmd_l = shlex.split(cmd)
 
     # TODO
-    #print(cmd)
+    print(cmd_l)
 
-    branch = subprocess.check_output(cmd, universal_newlines=True, shell=True)
+    branch = subprocess.check_output(cmd_l, universal_newlines=True, timeout=30)
     return branch.strip()
 
 
-def get_project_branches(force_scp=False):
+def get_project_branches(force_scp=True):
     project_branches = {}
     for project, project_cfg in projects.items():
         if not project_cfg:
@@ -49,14 +52,16 @@ def get_project_branches(force_scp=False):
             if not environ_cfg:
                 continue
 
-            # Upload the getbranch.sh script
-            if force_scp:
-                errno = scp_script(environ_cfg)
+            try:
+                # Upload the getbranch.sh script
+                if force_scp:
+                    errno = scp_script(environ_cfg)
+                project_branches[project][environ] = ssh_get_branch(environ_cfg)
 
-            project_branches[project][environ] = ssh_get_branch(environ_cfg)
+            except subprocess.TimeoutExpired:
+                project_branches[project][environ] = 'TIMEOUT'
 
     return OrderedDict(sorted(project_branches.items(), key=lambda t: t[0]))
-    #return project_branches
 
 
 if __name__ == '__main__':
